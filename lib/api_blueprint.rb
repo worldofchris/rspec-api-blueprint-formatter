@@ -36,7 +36,7 @@ class ApiBlueprint < RSpec::Core::Formatters::BaseTextFormatter
               examples: {
                 description => {
                   request: {
-                    parameters: request.parameters.except(*request.path_parameters.keys.map(&:to_s)).to_json,
+                    parameters: JSON.pretty_generate(request.parameters.except(*request.path_parameters.keys.map(&:to_s))),
                     format: request.format
                   },
                   source: passed.example.instance_variable_get(:@example_block).source,
@@ -44,7 +44,8 @@ class ApiBlueprint < RSpec::Core::Formatters::BaseTextFormatter
                   response: {
                     status: response.status,
                     body: response.body
-                  }
+                  },
+                  uri_parameters: metadata[:action_uri_parameters]
                 }
               }
             }
@@ -53,6 +54,12 @@ class ApiBlueprint < RSpec::Core::Formatters::BaseTextFormatter
       })
     end
     @example_group_instance = nil
+  end
+
+  def message(notification)
+  end
+
+  def dump_summary(notification)
   end
 
   def stop(notification)
@@ -87,21 +94,27 @@ class ApiBlueprint < RSpec::Core::Formatters::BaseTextFormatter
     output.puts "## #{action_name}\n" \
                 "\n" \
                 "#{action_meta_data[:description]}\n" \
+                "#{RSpec.configuration.api_blueprint_body}\n" \
                 "\n" \
 
     action_meta_data[:examples].each &method(:print_example)
   end
 
   def print_example(example_description, example_metadata)
+
+    # Hack Hack Hack
+    unless example_metadata[:uri_parameters].nil?
+      output.puts "+ Parameters\n" \
+       "\n" 
+      example_metadata[:uri_parameters].each do |key, value|
+        output.puts "    + #{key}: `#{value}`"
+      end
+    end
+    # Hack Hack Hack
+
     output.puts "+ Request #{example_description}\n" \
       "\n" \
-      "        #{example_metadata[:request][:parameters]}\n" \
-      "        \n" \
-      "        Location: #{example_metadata[:location]}\n" \
-      "        Source code:\n" \
-      "        \n" \
-      "#{indent_lines(8, example_metadata[:source])}\n" \
-      "\n"
+      "#{indent_lines(8, example_metadata[:request][:parameters])}\n" 
 
     output.puts "+ Response #{example_metadata[:response][:status]} (#{example_metadata[:request][:format]})\n" \
       "\n" \
